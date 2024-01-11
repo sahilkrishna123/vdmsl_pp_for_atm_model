@@ -3,10 +3,31 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <stdexcept>
+#include <cstring>
 
 
 
 using namespace std;
+
+// VDM++ Exception Handling Classes
+
+class InsufficientBalanceException : public std::runtime_error {
+public:
+    InsufficientBalanceException() : std::runtime_error("Withdrawal failed. Insufficient balance.") {}
+};
+
+class VDMException : public std::runtime_error {
+public:
+    VDMException(const char* message) : std::runtime_error(message) {}
+};
+
+
+class InvalidPINException : public std::runtime_error {
+public:
+    InvalidPINException() : std::runtime_error("Invalid PIN. Please enter exactly 4 digits.") {}
+};
+
 
 // Forward declarations
 class Card;
@@ -103,6 +124,7 @@ public:
             transactions.push_back(Transaction("Withdrawal", getCurrentDate(), amount));
         } else {
             cout << "Withdrawal failed. Insufficient balance." << endl;
+            throw InsufficientBalanceException();
         }
     }
 
@@ -191,6 +213,8 @@ int main() {
         cout << "Please Insert card? (Y/N): ";
         cin >> insertCardChoice;
 
+
+
         if (toupper(insertCardChoice) == 'Y') {
             // Handle card insertion
             Card card("Card1", 1234);
@@ -202,6 +226,11 @@ int main() {
                 do {
                     cout << "Enter PIN: ";
                     cin >> enteredPIN;
+
+if (std::to_string(enteredPIN).size() != 4) {
+               cout << "Please Enter exact 4 digits Pin code." <<endl;
+            }
+
 
                     if (enteredPIN == card.getPIN()) {
                         customer.enterPin();
@@ -268,6 +297,7 @@ int main() {
 
                 if (attempts == maxAttempts) {
                     cout << "You have made 3 invalid attempts. So your pin is blocked." << endl;
+                    throw VDMException("PIN blocked");
                 }
 
                 atm.returnCard();
