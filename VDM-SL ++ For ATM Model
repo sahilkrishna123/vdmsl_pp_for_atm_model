@@ -1,0 +1,247 @@
+state ATM of
+  validCards: set of Card;       -- Set of valid cards the ATM can accept
+  currentCard: [Card];           -- Currently inserted card, initially empty
+  pinCorrect: bool := false;     -- Whether the entered PIN is correct, initially False
+  accountID: nat := 0;           -- Identifier for the current account, initially 0
+  bank: Bank;                    -- Reference to the Bank object
+  accounts: map AccountId to Account; -- Map of account IDs to their corresponding accounts
+
+inv mk_ATM(vc, cc, pc, aid, b, ac) ==
+  (pc or cc = nil) and
+  (cc = nil or cc in set vc) and
+  (cc = nil -> not pc) and
+  aid >= 0 and
+  forall id1, id2 in set dom ac & id1 <> id2 =>
+    ac(id1).cards inter ac(id2).cards = {}; -- No two accounts have cards with overlapping numbers
+
+init mk_ATM(vc, cc, pc, aid, b, ac) ==
+  cc = nil and pc = false and aid = 0 and ac = {|->}; -- Initial state of the ATM
+
+end ATM
+
+
+classes
+
+class Card
+types
+  public Pin = N; // Assuming N represents natural numbers
+  public CardId = N;
+  
+instance variables
+  private cardId: CardId;
+  private pin: Pin;
+
+operations
+Card(id, pin) == (
+  cardID := id; -- This line has a typo
+  self.setPIN(pin);
+  return self
+);
+  private setPIN: nat ==> ()
+  setPIN(newPIN) == (
+    pin := newPIN
+  );
+
+  public getCardID: () ==> nat
+  getCardID() == (
+    return cardID
+  );
+
+  public getPIN: () ==> nat
+  getPIN() == (
+    return pin
+  );
+
+end Card
+
+class Bank
+types
+  public BankName = seq of char;
+  public Card = seq of char;
+
+instance variables
+  private bankName: BankName;
+  private validCards: set of Card;
+  private branch: seq of char;
+
+operations
+  public Bank: seq of char * set of Card * seq of char ==> Bank
+  Bank(name, cards, branch) == (
+    bankName := name;
+    validCards := cards;
+    self.setBranch(branch);
+    return self
+  );
+
+  private setBranch: seq of char ==> ()
+  setBranch(newBranch) == (
+    branch := newBranch
+  );
+
+    -- Function to validate account
+  public accountValidation: () ==> bool
+  accountValidation() == (
+    if databaseVerification() then
+      return true; -- Account is valid
+    else
+      return false; -- Invalid account
+    end if;
+  );
+
+  -- Function to validate amount
+  public amountValidation: () ==> bool
+  amountValidation() == (
+    if databaseVerification() then
+      return true; -- Amount is valid
+    else
+      return false; -- Invalid amount
+    end if;
+  );
+  public acceptCard: Card ==> bool
+  acceptCard(card) == (
+    return card in set validCards
+  );
+
+  
+
+end Bank
+
+
+
+
+class ATM
+
+instance variables
+  private currentCard: [Card] := nil;
+  private pinCorrect: bool := false;
+  private accountID: nat := 0;
+  private bank: Bank;
+
+operations
+  public ATM: Bank ==> ATM
+  ATM(bank) == (
+    self.bank := bank;
+    return self
+  );
+
+  public getStatus: () ==> bool
+  getStatus() == (
+    return currentCard <> nil and pinCorrect
+  );
+
+
+
+  public returnCard: () ==> ()
+  returnCard() == (
+    currentCard := nil
+  );
+
+  public acceptCard: Card ==> bool
+  acceptCard(card) == (
+    currentCard := card;
+    return bank.acceptCard(card)
+  );
+
+  
+end ATM
+
+class Transaction
+types
+  public Date = token;
+instance variables
+    private customerDetails: seq of char;
+  private date: Date;
+  private amount: BankCustomer`Amount;
+
+operations
+  public Transaction: seq of char * seq of char * real ==> Transaction
+  Transaction(details, date, amount) == (
+    customerDetails := details;
+    self.setDate(date);
+    self.setAmount(amount);
+    return self
+  );
+
+  private setDate: seq of char ==> ()
+  setDate(newDate) == (
+    date := newDate
+  );
+
+  private setAmount: real ==> ()
+  setAmount(newAmount) == (
+    amount := newAmount
+  );
+
+  public getBalance: () ==> BankCustomer`Amount
+  getBalance() == (
+return amount  );
+
+
+  public getStatus: () ==> bool
+  getStatus() == (
+    return currentCard <> nil and pinCorrect
+  );
+ end Transaction
+
+
+
+
+
+class BankCustomer
+
+types
+  public AccountId = nat;
+  public Amount = real;
+
+instance variables
+  private accountId: AccountId;
+  private cards: set of Card;
+  private balance: Amount;
+  private pinEntered: bool := false;
+
+operations
+  public BankCustomer: AccountId * set of Card * Amount ==> BankCustomer
+  BankCustomer(id, cards, balance) == (
+    accountId := id;
+    self.setCards(cards);
+    self.setBalance(balance);
+    return self
+  );
+
+  public enterPin: () ==> ()
+  enterPin() == (
+    pinEntered := true;
+  );
+
+  public insertCard: Card ==> ()
+  insertCard(card) == (
+    cards := cards union {card};
+  );
+
+  private setBalance: Amount ==> ()
+  setBalance(newBalance) == (
+    balance := newBalance
+  );
+
+  public getBalance: () ==> Amount
+  getBalance() == (
+    return balance
+  );
+
+  public withdraw: AccountId * Amount ==> ()
+  withdraw(currentAccountId, amount) == (
+    pre
+      currentCard <> nil and pinEntered and amount <= self.getBalance()
+    post
+      self.getBalance() = self.getBalance() - amount
+  );
+
+  public deposit: AccountId * Amount ==> ()
+  deposit(currentAccountId, amount) == (
+    pre
+      currentCard <> nil and pinEntered
+    post
+      self.getBalance() = self.getBalance() + amount
+  );
+
+end BankCustomer
